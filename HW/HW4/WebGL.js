@@ -212,21 +212,24 @@ var mvpMatrix;
 var modelMatrix;
 var normalMatrix;
 var lightMatrix;
-var lightX = 0, lightY = 2, lightZ = 5
+var lightX = 3, lightY = 7, lightZ = 5
 var nVertex;
-var cameraX = 3, cameraY = 3, cameraZ = 7;
+var cameraX = 3, cameraY = 1, cameraZ = 7;
+var cameraDirX = -5, cameraDirY = 0, cameraDirZ = -10;
+var offScreenWidth = 4096, offScreenHeight = 4096;
 var objScale = 0.1;
 var cube = [];
 var pyramid = [];
 var sphere = [];
 var trump = [];
-var meat = [];
+var car = [];
 var textures = {};
-var cubeObj = [];
+var screen = [];
 var quadObj;
 var cubeMapTex;
-var imgNames = ["trumpLPcolors.png"];
-var objCompImgIndex = ["trumpLPcolors.png"];
+var imgNames = {"trump":["trumpLPcolors.png"], "car":["bodybkgd.JPG","interior_bump.jpg", "interior.jpg", "parts1.jpg", "parts2.jpg", "tires_bump.JPG"]};
+var objCompImgIndex = {"trump":["trumpLPcolors.png"], "car":["bodybkgd.JPG","bodybkgd.JPG","interior_bump.jpg", "interior.jpg", "parts1.jpg", "parts2.jpg", "tires_bump.JPG"]};
+var fbo;
 var texCount = 0;
 var numTextures = imgNames.length;
 var moveDistance = 0;
@@ -238,6 +241,8 @@ var slide1 = 0, joint1 = 0, flag = true;
 var slide2 = 0, joint2 = 0, flag2 = true;
 var slide3 = 0, joint3 = 0;
 var delta = 0;
+var newViewDir;
+var isdraw=0;
 
 async function main(){
     canvas = document.getElementById('webgl');
@@ -284,7 +289,7 @@ async function main(){
     image.onload = function(){initTexture(gl, image, "trumpLPcolors.png");};
     image.src = "trumpLPcolors.png";
 
-    response = await fetch('meat.obj');
+    response = await fetch('car.obj');
     text = await response.text();
     obj = parseOBJ(text);
 
@@ -293,9 +298,29 @@ async function main(){
                                           obj.geometries[i].data.position,
                                           obj.geometries[i].data.normal, 
                                           obj.geometries[i].data.texcoord);
-      meat.push(o);
+      car.push(o);
+    }
+
+    for( let i=0; i < imgNames.length; i ++ ){
+        let image = new Image();
+        image.onload = function(){initTexture(gl, image, imgNames[i]);};
+        image.src = imgNames[i];
+      }
+
+    response = await fetch('cube.obj');
+    text = await response.text();
+    obj = parseOBJ(text);
+
+    for( let i=0; i < obj.geometries.length; i ++ ){
+      let o = initVertexBufferForLaterUse(gl, 
+                                          obj.geometries[i].data.position,
+                                          obj.geometries[i].data.normal, 
+                                          obj.geometries[i].data.texcoord);
+      screen.push(o);
     }
     
+    
+
     cubeVertices = [
       1.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, //front
       1.0, 1.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, //right
@@ -324,6 +349,8 @@ async function main(){
     o = initVertexBufferForLaterUse(gl, sphereVertices, sphereNormals, null);
     sphere.push(o);
 
+    fbo = initFrameBuffer(gl);
+
     mvpMatrix = new Matrix4();
     modelMatrix = new Matrix4();
     normalMatrix = new Matrix4();
@@ -331,26 +358,26 @@ async function main(){
 
     gl.enable(gl.DEPTH_TEST);
 
-    // var quad = new Float32Array(
-    //     [
-    //       -1, -1, 1,
-    //        1, -1, 1,
-    //       -1,  1, 1,
-    //       -1,  1, 1,
-    //        1, -1, 1,
-    //        1,  1, 1
-    //     ]); //just a quad
+    var quad = new Float32Array(
+        [
+          -1, -1, 1,
+           1, -1, 1,
+          -1,  1, 1,
+          -1,  1, 1,
+           1, -1, 1,
+           1,  1, 1
+        ]); //just a quad
   
-    // programEnvCube = compileShader(gl, VSHADER_SOURCE_ENVCUBE, FSHADER_SOURCE_ENVCUBE);
-    // programEnvCube.a_Position = gl.getAttribLocation(programEnvCube, 'a_Position'); 
-    // programEnvCube.u_envCubeMap = gl.getUniformLocation(programEnvCube, 'u_envCubeMap'); 
-    // programEnvCube.u_viewDirectionProjectionInverse = 
-    //             gl.getUniformLocation(programEnvCube, 'u_viewDirectionProjectionInverse'); 
+    programEnvCube = compileShader(gl, VSHADER_SOURCE_ENVCUBE, FSHADER_SOURCE_ENVCUBE);
+    programEnvCube.a_Position = gl.getAttribLocation(programEnvCube, 'a_Position'); 
+    programEnvCube.u_envCubeMap = gl.getUniformLocation(programEnvCube, 'u_envCubeMap'); 
+    programEnvCube.u_viewDirectionProjectionInverse = 
+                gl.getUniformLocation(programEnvCube, 'u_viewDirectionProjectionInverse'); 
 
-    // quadObj = initVertexBufferForLaterUse(gl, quad);
+    quadObj = initVertexBufferForLaterUse(gl, quad);
 
-    // cubeMapTex = initCubeTexture("skybox/right.JPG", "skybox/left.JPG", "skybox/up.JPG", "skybox/down.JPG", 
-    //                                 "skybox/front.JPG", "skybox/back.JPG", 512, 512)
+    cubeMapTex = initCubeTexture("skybox/front.JPG", "skybox/back.JPG", "skybox/up.JPG", "skybox/down.JPG", 
+                                    "skybox/right.JPG", "skybox/left.JPG", 512, 512)
 
     console.warn("test");
     console.error("here")
@@ -358,6 +385,7 @@ async function main(){
     canvas.onmousemove = function(ev){mouseMove(ev)};
     canvas.onmouseup = function(ev){mouseUp(ev)};
     canvas.onwheel = function(ev){wheelscroll(ev)}
+    document.onkeydown = function(ev){keydown(ev)};
     var rxSlider = document.getElementById("robotX");
     rxSlider.oninput = function() {
         rx = this.value / 100.0; //convert sliders value to -1 to +1
@@ -394,7 +422,7 @@ async function main(){
         }
         draw(gl);
     }
-
+    
 }
 
 function getsphereVertices() {
@@ -419,7 +447,7 @@ function getsphereVertices() {
         }
         
     }
-    console.log(vertices)
+    // console.log(vertices)
 
     for (j = 0; j < SPHERE_DIV; j++)
     {
@@ -449,7 +477,7 @@ function getsphereVertices() {
             sphereVertices.push(vertices[p4+2]);
         }
     }
-    console.log(sphereVertices)
+    // console.log(sphereVertices)
     return sphereVertices;
 }
 
@@ -463,12 +491,79 @@ function popMatrix(){
 }
 
 function draw(){
+    if(isdraw < 2){
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.viewport(0, 0, offScreenWidth, offScreenHeight);
+        drawOffScreen();
+        isdraw += 1;
+    }
+    
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    drawOnScreen();
+}
+function drawOffScreen(){
     gl.clearColor(0,0,0,1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    let rotateMatrix = new Matrix4();
+    // rotateMatrix.setRotate(angleY, 1, 0, 0);//for mouse rotation
+    // rotateMatrix.rotate(angleX, 0, 1, 0);//for mouse rotation
+    var viewDir= new Vector3([cameraDirX, cameraDirY, cameraDirZ]);
+    newViewDir = rotateMatrix.multiplyVector3(viewDir);
+
+    var vpFromCamera = new Matrix4();
+    vpFromCamera.setPerspective(60, 1, 1, 100);
+    var viewMatrixRotationOnly = new Matrix4();
+    viewMatrixRotationOnly.lookAt(cameraX, cameraY, cameraZ, 
+                                    cameraX + newViewDir.elements[0], 
+                                    cameraY + newViewDir.elements[1], 
+                                    cameraZ + newViewDir.elements[2], 
+                                    0, 1, 0);
+    viewMatrixRotationOnly.elements[12] = 0; //ignore translation
+    viewMatrixRotationOnly.elements[13] = 0;
+    viewMatrixRotationOnly.elements[14] = 0;
+    vpFromCamera.multiply(viewMatrixRotationOnly);
+    var vpFromCameraInverse = vpFromCamera.invert();
+
+    // //model Matrix (part of the mvp matrix)
+    modelMatrix.setRotate(0, 1, 0, 0);//for mouse rotation
+    modelMatrix.rotate(30, 0, 1, 0);//for mouse rotation
+    modelMatrix.scale(objScale, objScale, objScale);
+    // modelMatrix.translate(-10.0, 50.0, -30.0);
+    // //mvp: projection * view * model matrix  
+    mvpMatrix.setPerspective(60, 1, 1, 100);
+    mvpMatrix.lookAt(cameraX, cameraY, cameraZ, 
+        cameraX + newViewDir.elements[0], 
+        cameraY + newViewDir.elements[1], 
+        cameraZ + newViewDir.elements[2], 
+        0, 1, 0);
+    mvpMatrix.multiply(modelMatrix);
+
+    //normal matrix
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+
+
+
+    gl.viewport(0, 0, offScreenWidth, offScreenHeight);
+    gl.clearColor(0.4, 0.4, 0.4, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
+
+
+    gl.useProgram(program);
+    
+    gl.uniform3f(program.u_LightPosition, 0, 0, 3);
+    gl.uniform3f(program.u_ViewPosition, cameraX, cameraY, cameraZ);
+    gl.uniform1f(program.u_Ka, 0.2);
+    gl.uniform1f(program.u_Kd, 0.7);
+    gl.uniform1f(program.u_Ks, 1.0);
+    gl.uniform1f(program.u_shininess, 10.0);
+    gl.uniform3f(program.u_Color, 1.0, 0.4, 0.4);
 
     // let mdlMatrix = new Matrix4();
     mdlMatrix.setIdentity()
-    mdlMatrix.scale(zoom, zoom, zoom);
+    mdlMatrix.scale(3, 3, 3);
     pushMatrix()
     mdlMatrix.translate(lightX, lightY, lightZ);
     drawOneObject(sphere, mdlMatrix, 1.0, 1.0, 1.0);
@@ -486,7 +581,7 @@ function draw(){
     
     mdlMatrix.translate(-0.2, 1, -0.3);
     mdlMatrix.rotate(90, 1, 0, 0);
-    drawOneObject(meat, mdlMatrix, 1.0, 0.4, 0.0);
+    drawOneObject(car, mdlMatrix, 1.0, 0.4, 0.0);
     mdlMatrix.rotate(-90, 1, 0, 0);
     popMatrix();
 
@@ -533,7 +628,170 @@ function draw(){
 
     // mdlMatrix.translate(lightX, lightY, lightZ);
     // drawOneObject(sphere, mdlMatrix, 1.0, 1.0, 1.0);
-     
+    //quad
+    gl.useProgram(programEnvCube);
+    gl.depthFunc(gl.LEQUAL);
+    gl.uniformMatrix4fv(programEnvCube.u_viewDirectionProjectionInverse, 
+                        false, vpFromCameraInverse.elements);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeMapTex);
+    gl.uniform1i(programEnvCube.u_envCubeMap, 0);
+    initAttributeVariable(gl, programEnvCube.a_Position, quadObj.vertexBuffer);
+    gl.drawArrays(gl.TRIANGLES, 0, quadObj.numVertices);
+
+}
+
+function drawOnScreen(){
+    gl.clearColor(0,0,0,1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    let rotateMatrix = new Matrix4();
+    rotateMatrix.setRotate(angleY, 1, 0, 0);//for mouse rotation
+    rotateMatrix.rotate(angleX, 0, 1, 0);//for mouse rotation
+    var viewDir= new Vector3([cameraDirX, cameraDirY, cameraDirZ]);
+    newViewDir = rotateMatrix.multiplyVector3(viewDir);
+
+    var vpFromCamera = new Matrix4();
+    vpFromCamera.setPerspective(60, 1, 1, 100);
+    var viewMatrixRotationOnly = new Matrix4();
+    viewMatrixRotationOnly.lookAt(cameraX, cameraY, cameraZ, 
+                                    cameraX + newViewDir.elements[0], 
+                                    cameraY + newViewDir.elements[1], 
+                                    cameraZ + newViewDir.elements[2], 
+                                    0, 1, 0);
+    viewMatrixRotationOnly.elements[12] = 0; //ignore translation
+    viewMatrixRotationOnly.elements[13] = 0;
+    viewMatrixRotationOnly.elements[14] = 0;
+    vpFromCamera.multiply(viewMatrixRotationOnly);
+    var vpFromCameraInverse = vpFromCamera.invert();
+
+    // //model Matrix (part of the mvp matrix)
+    modelMatrix.setRotate(0, 1, 0, 0);//for mouse rotation
+    modelMatrix.rotate(30, 0, 1, 0);//for mouse rotation
+    modelMatrix.scale(objScale, objScale, objScale);
+    // modelMatrix.translate(-10.0, 50.0, -30.0);
+    // //mvp: projection * view * model matrix  
+    mvpMatrix.setPerspective(60, 1, 1, 100);
+    mvpMatrix.lookAt(cameraX, cameraY, cameraZ, 
+        cameraX + newViewDir.elements[0], 
+        cameraY + newViewDir.elements[1], 
+        cameraZ + newViewDir.elements[2], 
+        0, 1, 0);
+    mvpMatrix.multiply(modelMatrix);
+
+    //normal matrix
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+
+
+
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.4, 0.4, 0.4, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
+
+
+    gl.useProgram(program);
+    
+    gl.uniform3f(program.u_LightPosition, 0, 0, 3);
+    gl.uniform3f(program.u_ViewPosition, cameraX, cameraY, cameraZ);
+    gl.uniform1f(program.u_Ka, 0.2);
+    gl.uniform1f(program.u_Kd, 0.7);
+    gl.uniform1f(program.u_Ks, 1.0);
+    gl.uniform1f(program.u_shininess, 10.0);
+    gl.uniform3f(program.u_Color, 1.0, 0.4, 0.4);
+
+    // let mdlMatrix = new Matrix4();
+    mdlMatrix.setIdentity()
+    mdlMatrix.scale(zoom, zoom, zoom);
+    mdlMatrix.scale(1, 1, 0.1);
+    mdlMatrix.translate(0, 2, -10);
+    drawOneObject(screen, mdlMatrix);
+
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, fbo.texture);
+
+    for( let i=0; i < screen.length; i ++ ){
+      initAttributeVariable(gl, program.a_Position, screen[i].vertexBuffer);
+      initAttributeVariable(gl, program.a_TexCoord, screen[i].texCoordBuffer);
+      initAttributeVariable(gl, program.a_Normal, screen[i].normalBuffer);
+      gl.drawArrays(gl.TRIANGLES, 0, screen[i].numVertices);
+    }
+    
+
+    mdlMatrix.setIdentity()
+    mdlMatrix.scale(zoom, zoom, zoom);
+    pushMatrix()
+    mdlMatrix.translate(lightX, lightY, lightZ);
+    drawOneObject(sphere, mdlMatrix, 1.0, 1.0, 1.0);
+    popMatrix();
+    
+    pushMatrix();
+    mdlMatrix.scale(2, 0.1, 2);
+    drawOneObject(cube, mdlMatrix, 1.0, 0.4, 0.4);
+    popMatrix();
+    
+    pushMatrix();
+    mdlMatrix.translate(-0.5, 0.1, -0.5);
+    mdlMatrix.scale(0.3, 0.3, 0.3);
+    drawOneObject(trump, mdlMatrix);
+    
+    mdlMatrix.translate(-0.2, 1, -0.3);
+    mdlMatrix.rotate(90, 1, 0, 0);
+    drawOneObject(car, mdlMatrix, 1.0, 0.4, 0.0);
+    mdlMatrix.rotate(-90, 1, 0, 0);
+    popMatrix();
+
+    mdlMatrix.translate(rx, 0, ry);
+    mdlMatrix.scale(0.1, 0.1, 0.1);
+    mdlMatrix.translate(0, 4, 0);
+    pushMatrix()
+    mdlMatrix.scale(2, 2, 2);
+    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
+    popMatrix()
+    mdlMatrix.translate(0, 3, 0);
+    mdlMatrix.scale(0.5, 0.5, 0.5);
+    // mdlMatrix.scale(0.5, 0.5, 0.5);
+    pushMatrix();
+    mdlMatrix.scale(1, 2, 1);
+    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
+    popMatrix();
+    mdlMatrix.translate(0, 3, 0);
+    mdlMatrix.rotate(joint1, 1, 0, 0)
+    drawOneObject(sphere, mdlMatrix, 0.0, 0.4, 1.0);
+    mdlMatrix.translate(0, 3, 0);
+    pushMatrix();
+    mdlMatrix.scale(1, 2, 1);
+    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
+    popMatrix();
+    pushMatrix();
+    mdlMatrix.scale(1, 2, 1);
+    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
+    popMatrix();
+    mdlMatrix.translate(0, 3, 0);
+    mdlMatrix.rotate(joint2, 1, 0, 0)
+    mdlMatrix.rotate(joint3, 0, 1, 0)
+    drawOneObject(sphere, mdlMatrix, 0.0, 0.4, 1.0);
+    mdlMatrix.translate(0, 3, 0);
+    pushMatrix();
+    mdlMatrix.scale(1, 2, 1);
+    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
+    popMatrix();
+    mdlMatrix.translate(0, 2, 0);
+    pushMatrix();
+    mdlMatrix.scale(1, 2, 1);
+    drawOneObject(pyramid, mdlMatrix, 0.0, 0.4, 1.0);
+    popMatrix();
+
+    gl.useProgram(programEnvCube);
+    gl.depthFunc(gl.LEQUAL);
+    gl.uniformMatrix4fv(programEnvCube.u_viewDirectionProjectionInverse, 
+                        false, vpFromCameraInverse.elements);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeMapTex);
+    gl.uniform1i(programEnvCube.u_envCubeMap, 0);
+    initAttributeVariable(gl, programEnvCube.a_Position, quadObj.vertexBuffer);
+    gl.drawArrays(gl.TRIANGLES, 0, quadObj.numVertices);
 
 }
 
@@ -542,16 +800,20 @@ function draw(){
 //colorR, G, B: object color
 function drawOneObject(obj, mdlMatrix, colorR, colorG, colorB){
     //model Matrix (part of the mvp matrix)
-    modelMatrix.setRotate(angleY, 1, 0, 0);//for mouse rotation
-    modelMatrix.rotate(angleX, 0, 1, 0);//for mouse rotation
+    modelMatrix.setRotate(0, 1, 0, 0);//for mouse rotation
+    modelMatrix.rotate(30, 0, 1, 0);//for mouse rotation
     modelMatrix.multiply(mdlMatrix);
-    lightMatrix.setRotate(angleY, 1, 0, 0);//for mouse rotation
-    lightMatrix.rotate(angleX, 0, 1, 0);//for mouse rotation
+    lightMatrix.setRotate(0, 1, 0, 0);//for mouse rotation
+    lightMatrix.rotate(30, 0, 1, 0);//for mouse rotation
     lightMatrix.scale(zoom, zoom, zoom);
     // lightMatrix.multiply(mdlMatrix);
     //mvp: projection * view * model matrix  
-    mvpMatrix.setPerspective(30, 1, 1, 100);
-    mvpMatrix.lookAt(cameraX, cameraY, cameraZ, 0, 0, 0, 0, 1, 0);
+    mvpMatrix.setPerspective(60, 1, 1, 100);
+    mvpMatrix.lookAt(cameraX, cameraY, cameraZ, 
+        cameraX + newViewDir.elements[0], 
+        cameraY + newViewDir.elements[1], 
+        cameraZ + newViewDir.elements[2], 
+        0, 1, 0);
     mvpMatrix.multiply(modelMatrix);
 
     //normal matrix
@@ -793,8 +1055,108 @@ function initTexture(gl, img, imgName){
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
 
   textures[imgName] = tex;
-
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
   texCount++;
   if( texCount == numTextures)draw();
 }
 
+function initCubeTexture(posXName, negXName, posYName, negYName, 
+  posZName, negZName, imgWidth, imgHeight)
+{
+var texture = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+
+const faceInfos = [
+{
+target: gl.TEXTURE_CUBE_MAP_POSITIVE_X,
+fName: posXName,
+},
+{
+target: gl.TEXTURE_CUBE_MAP_NEGATIVE_X,
+fName: negXName,
+},
+{
+target: gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
+fName: posYName,
+},
+{
+target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
+fName: negYName,
+},
+{
+target: gl.TEXTURE_CUBE_MAP_POSITIVE_Z,
+fName: posZName,
+},
+{
+target: gl.TEXTURE_CUBE_MAP_NEGATIVE_Z,
+fName: negZName,
+},
+];
+faceInfos.forEach((faceInfo) => {
+const {target, fName} = faceInfo;
+// setup each face so it's immediately renderable
+gl.texImage2D(target, 0, gl.RGBA, imgWidth, imgHeight, 0, 
+gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+var image = new Image();
+image.onload = function(){
+gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+gl.texImage2D(target, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+};
+image.src = fName;
+});
+gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+
+return texture;
+}
+
+function initFrameBuffer(gl){
+    //create and set up a texture object as the color buffer
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, offScreenWidth, offScreenHeight,
+                    0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    
+  
+    //create and setup a render buffer as the depth buffer
+    var depthBuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, 
+                            offScreenWidth, offScreenHeight);
+  
+    //create and setup framebuffer: linke the color and depth buffer to it
+    var frameBuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, 
+                              gl.TEXTURE_2D, texture, 0);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, 
+                                gl.RENDERBUFFER, depthBuffer);
+    frameBuffer.texture = texture;
+    return frameBuffer;
+  }
+
+function keydown(ev){ 
+    //implment keydown event here
+    let rotateMatrix = new Matrix4();
+    rotateMatrix.setRotate(angleY, 1, 0, 0);//for mouse rotation
+    rotateMatrix.rotate(angleX, 0, 1, 0);//for mouse rotation
+    var viewDir= new Vector3([cameraDirX, cameraDirY, cameraDirZ]);
+    var newViewDir = rotateMatrix.multiplyVector3(viewDir);
+  
+    if(ev.key == 'w'){ 
+        cameraX += (newViewDir.elements[0] * 0.1 * zoom);
+        cameraY += (newViewDir.elements[1] * 0.1 * zoom);
+        cameraZ += (newViewDir.elements[2] * 0.1 * zoom);
+    }
+    else if(ev.key == 's'){ 
+      cameraX -= (newViewDir.elements[0] * 0.1 * zoom);
+      cameraY -= (newViewDir.elements[1] * 0.1 * zoom);
+      cameraZ -= (newViewDir.elements[2] * 0.1 * zoom);
+    }
+  
+    console.log(cameraX, cameraY, cameraZ)
+    draw();
+  }
