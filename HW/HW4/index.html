@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>WebPage Title </title>
+    </head>
+
+    <body onload="main()">
+        <canvas id="webgl" width = "800" height = "800">
+            Please use a browser that support "canvas"
+        </canvas>
+        <script src="cuon-matrix.js"></script>
+        <script src="WebGL.js"></script>
+        <script src="//cdn.bootcdn.net/ajax/libs/eruda/2.3.3/eruda.js"></script>
+        <script>eruda.init();</script>
+        <div class="slidecontainer0">
+            Robot X:<input type="range" min="-100" max="100" value="0" class="slider" id="robotX">
+            Robot Y:<input type="range" min="-100" max="100" value="0" class="slider" id="robotY">
+        </div>
+    </body>
+</html>
+
+
