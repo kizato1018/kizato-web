@@ -212,7 +212,7 @@ var mvpMatrix;
 var modelMatrix;
 var normalMatrix;
 var lightMatrix;
-var lightX = 3, lightY = 7, lightZ = 5
+var lightX = 3, lightY = 4, lightZ = 3
 var nVertex;
 var cameraX = 3, cameraY = 1, cameraZ = 7;
 var cameraDirX = -5, cameraDirY = 0, cameraDirZ = -10;
@@ -228,7 +228,7 @@ var screen = [];
 var quadObj;
 var cubeMapTex;
 var imgNames = {"trump":["trumpLPcolors.png"], "car":["bodybkgd.JPG","interior_bump.jpg", "interior.jpg", "parts1.jpg", "parts2.jpg", "tires_bump.JPG"]};
-var objCompImgIndex = {"trump":["trumpLPcolors.png"], "car":["bodybkgd.JPG","bodybkgd.JPG","interior_bump.jpg", "interior.jpg", "parts1.jpg", "parts2.jpg", "tires_bump.JPG"]};
+var objCompImgIndex = {"trump":["trumpLPcolors.png"], "car":["parts1.jpg", "interior_bump.jpg", "interior.jpg", "interior.jpg", "tires_bump.JPG", "parts2.jpg", "bodybkgd.JPG", "bodybkgd.JPG", "bodybkgd.JPG", "bodybkgd.JPG", "parts2.jpg", "tires_bump.JPG", "bodybkgd.JPG", "bodybkgd.JPG", "bodybkgd.JPG", "interior_bump.jpg", "interior.jpg", "bodybkgd.JPG", "bodybkgd.JPG", "interior_bump.jpg", "interior.jpg", "bodybkgd.JPG", "parts2.jpg", "parts2.jpg", "bodybkgd.JPG", "parts2.jpg", "tires_bump.JPG", "parts2.jpg"], "screen": ["screen"]};
 var fbo;
 var texCount = 0;
 var numTextures = imgNames.length;
@@ -284,10 +284,11 @@ async function main(){
                                           obj.geometries[i].data.texcoord);
       trump.push(o);
     }
-
-    let image = new Image();
-    image.onload = function(){initTexture(gl, image, "trumpLPcolors.png");};
-    image.src = "trumpLPcolors.png";
+    for( let i=0; i < imgNames["trump"].length; i ++ ){
+      let image = new Image();
+      image.onload = function(){initTexture(gl, image, imgNames["trump"][i]);};
+      image.src = imgNames["trump"][i];
+    }
 
     response = await fetch('car.obj');
     text = await response.text();
@@ -301,10 +302,10 @@ async function main(){
       car.push(o);
     }
 
-    for( let i=0; i < imgNames.length; i ++ ){
+    for( let i=0; i < imgNames["car"].length; i ++ ){
         let image = new Image();
-        image.onload = function(){initTexture(gl, image, imgNames[i]);};
-        image.src = imgNames[i];
+        image.onload = function(){initTexture(gl, image, imgNames["car"][i]);};
+        image.src = imgNames["car"][i];
       }
 
     response = await fetch('cube.obj');
@@ -386,43 +387,6 @@ async function main(){
     canvas.onmouseup = function(ev){mouseUp(ev)};
     canvas.onwheel = function(ev){wheelscroll(ev)}
     document.onkeydown = function(ev){keydown(ev)};
-    var rxSlider = document.getElementById("robotX");
-    rxSlider.oninput = function() {
-        rx = this.value / 100.0; //convert sliders value to -1 to +1
-        if(flag) {
-            joint1++;
-            joint2++;
-            if(joint1 >= 90)
-                flag = false;
-        }
-        else{
-            joint1--;
-            joint2--;
-            if(joint1 <= 0)
-                flag = true;
-        }
-        joint3 = (joint3 + 1) % 360
-        draw(gl);
-    }
-  
-    var rySlider = document.getElementById("robotY");
-    rySlider.oninput = function() {
-        ry = this.value / 100.0; //convert sliders value to -1 to +1
-        if(flag) {
-            joint1++;
-            joint2++;
-            if(joint1 >= 90)
-                flag = false;
-        }
-        else{
-            joint1--;
-            joint2--;
-            if(joint1 <= 0)
-                flag = true;
-        }
-        draw(gl);
-    }
-    
 }
 
 function getsphereVertices() {
@@ -496,6 +460,7 @@ function draw(){
         gl.viewport(0, 0, offScreenWidth, offScreenHeight);
         drawOffScreen();
         isdraw += 1;
+        textures["screen"] = fbo.texture;
     }
     
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -566,68 +531,25 @@ function drawOffScreen(){
     mdlMatrix.scale(3, 3, 3);
     pushMatrix()
     mdlMatrix.translate(lightX, lightY, lightZ);
-    drawOneObject(sphere, mdlMatrix, 1.0, 1.0, 1.0);
+    drawOneObject(sphere, mdlMatrix, null, 1.0, 1.0, 1.0);
     popMatrix();
     
     pushMatrix();
     mdlMatrix.scale(2, 0.1, 2);
-    drawOneObject(cube, mdlMatrix, 1.0, 0.4, 0.4);
+    drawOneObject(cube, mdlMatrix, null, 1.0, 0.4, 0.4);
     popMatrix();
     
     pushMatrix();
-    mdlMatrix.translate(-0.5, 0.1, -0.5);
+    mdlMatrix.translate(0, 0.1, 0);
     mdlMatrix.scale(0.3, 0.3, 0.3);
-    drawOneObject(trump, mdlMatrix);
+    drawOneObject(trump, mdlMatrix, "trump");
     
-    mdlMatrix.translate(-0.2, 1, -0.3);
-    mdlMatrix.rotate(90, 1, 0, 0);
-    drawOneObject(car, mdlMatrix, 1.0, 0.4, 0.0);
-    mdlMatrix.rotate(-90, 1, 0, 0);
-    popMatrix();
-
-    mdlMatrix.translate(rx, 0, ry);
-    mdlMatrix.scale(0.1, 0.1, 0.1);
-    mdlMatrix.translate(0, 4, 0);
-    pushMatrix()
-    mdlMatrix.scale(2, 2, 2);
-    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
-    popMatrix()
-    mdlMatrix.translate(0, 3, 0);
+    mdlMatrix.translate(-2, 0, -0.3);
+    mdlMatrix.rotate(155, 0, 1, 0);
     mdlMatrix.scale(0.5, 0.5, 0.5);
-    // mdlMatrix.scale(0.5, 0.5, 0.5);
-    pushMatrix();
-    mdlMatrix.scale(1, 2, 1);
-    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
-    popMatrix();
-    mdlMatrix.translate(0, 3, 0);
-    mdlMatrix.rotate(joint1, 1, 0, 0)
-    drawOneObject(sphere, mdlMatrix, 0.0, 0.4, 1.0);
-    mdlMatrix.translate(0, 3, 0);
-    pushMatrix();
-    mdlMatrix.scale(1, 2, 1);
-    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
-    popMatrix();
-    pushMatrix();
-    mdlMatrix.scale(1, 2, 1);
-    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
-    popMatrix();
-    mdlMatrix.translate(0, 3, 0);
-    mdlMatrix.rotate(joint2, 1, 0, 0)
-    mdlMatrix.rotate(joint3, 0, 1, 0)
-    drawOneObject(sphere, mdlMatrix, 0.0, 0.4, 1.0);
-    mdlMatrix.translate(0, 3, 0);
-    pushMatrix();
-    mdlMatrix.scale(1, 2, 1);
-    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
-    popMatrix();
-    mdlMatrix.translate(0, 2, 0);
-    pushMatrix();
-    mdlMatrix.scale(1, 2, 1);
-    drawOneObject(pyramid, mdlMatrix, 0.0, 0.4, 1.0);
+    drawOneObject(car, mdlMatrix, "car");
     popMatrix();
 
-    // mdlMatrix.translate(lightX, lightY, lightZ);
-    // drawOneObject(sphere, mdlMatrix, 1.0, 1.0, 1.0);
     //quad
     gl.useProgram(programEnvCube);
     gl.depthFunc(gl.LEQUAL);
@@ -705,7 +627,7 @@ function drawOnScreen(){
     mdlMatrix.scale(zoom, zoom, zoom);
     mdlMatrix.scale(1, 1, 0.1);
     mdlMatrix.translate(0, 2, -10);
-    drawOneObject(screen, mdlMatrix);
+    drawOneObject(screen, mdlMatrix, "screen");
 
 
     gl.activeTexture(gl.TEXTURE0);
@@ -723,65 +645,25 @@ function drawOnScreen(){
     mdlMatrix.scale(zoom, zoom, zoom);
     pushMatrix()
     mdlMatrix.translate(lightX, lightY, lightZ);
-    drawOneObject(sphere, mdlMatrix, 1.0, 1.0, 1.0);
+    drawOneObject(sphere, mdlMatrix, null, 1.0, 1.0, 1.0);
     popMatrix();
     
     pushMatrix();
     mdlMatrix.scale(2, 0.1, 2);
-    drawOneObject(cube, mdlMatrix, 1.0, 0.4, 0.4);
+    drawOneObject(cube, mdlMatrix, null, 1.0, 0.4, 0.4);
     popMatrix();
     
     pushMatrix();
-    mdlMatrix.translate(-0.5, 0.1, -0.5);
+    mdlMatrix.translate(0, 0.1, 0);
     mdlMatrix.scale(0.3, 0.3, 0.3);
-    drawOneObject(trump, mdlMatrix);
+    drawOneObject(trump, mdlMatrix, "trump");
     
-    mdlMatrix.translate(-0.2, 1, -0.3);
-    mdlMatrix.rotate(90, 1, 0, 0);
-    drawOneObject(car, mdlMatrix, 1.0, 0.4, 0.0);
-    mdlMatrix.rotate(-90, 1, 0, 0);
+    mdlMatrix.translate(-2, 0, -0.3);
+    mdlMatrix.rotate(155, 0, 1, 0);
+    mdlMatrix.scale(0.5, 0.5, 0.5);
+    drawOneObject(car, mdlMatrix, "car");
     popMatrix();
 
-    mdlMatrix.translate(rx, 0, ry);
-    mdlMatrix.scale(0.1, 0.1, 0.1);
-    mdlMatrix.translate(0, 4, 0);
-    pushMatrix()
-    mdlMatrix.scale(2, 2, 2);
-    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
-    popMatrix()
-    mdlMatrix.translate(0, 3, 0);
-    mdlMatrix.scale(0.5, 0.5, 0.5);
-    // mdlMatrix.scale(0.5, 0.5, 0.5);
-    pushMatrix();
-    mdlMatrix.scale(1, 2, 1);
-    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
-    popMatrix();
-    mdlMatrix.translate(0, 3, 0);
-    mdlMatrix.rotate(joint1, 1, 0, 0)
-    drawOneObject(sphere, mdlMatrix, 0.0, 0.4, 1.0);
-    mdlMatrix.translate(0, 3, 0);
-    pushMatrix();
-    mdlMatrix.scale(1, 2, 1);
-    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
-    popMatrix();
-    pushMatrix();
-    mdlMatrix.scale(1, 2, 1);
-    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
-    popMatrix();
-    mdlMatrix.translate(0, 3, 0);
-    mdlMatrix.rotate(joint2, 1, 0, 0)
-    mdlMatrix.rotate(joint3, 0, 1, 0)
-    drawOneObject(sphere, mdlMatrix, 0.0, 0.4, 1.0);
-    mdlMatrix.translate(0, 3, 0);
-    pushMatrix();
-    mdlMatrix.scale(1, 2, 1);
-    drawOneObject(cube, mdlMatrix, 0.0, 0.4, 1.0);
-    popMatrix();
-    mdlMatrix.translate(0, 2, 0);
-    pushMatrix();
-    mdlMatrix.scale(1, 2, 1);
-    drawOneObject(pyramid, mdlMatrix, 0.0, 0.4, 1.0);
-    popMatrix();
 
     gl.useProgram(programEnvCube);
     gl.depthFunc(gl.LEQUAL);
@@ -798,7 +680,7 @@ function drawOnScreen(){
 //obj: the object components
 //mdlMatrix: the model matrix without mouse rotation
 //colorR, G, B: object color
-function drawOneObject(obj, mdlMatrix, colorR, colorG, colorB){
+function drawOneObject(obj, mdlMatrix, mdlname, colorR, colorG, colorB){
     //model Matrix (part of the mvp matrix)
     modelMatrix.setRotate(0, 1, 0, 0);//for mouse rotation
     modelMatrix.rotate(30, 0, 1, 0);//for mouse rotation
@@ -832,22 +714,22 @@ function drawOneObject(obj, mdlMatrix, colorR, colorG, colorB){
     gl.uniformMatrix4fv(program.u_normalMatrix, false, normalMatrix.elements);
     gl.uniformMatrix4fv(program.u_LightMatrix, false, lightMatrix.elements);
     
-    if(arguments.length == 5) {
+    if(arguments.length == 6) {
         gl.uniform1i(program.u_istex, 0)
         gl.uniform3f(program.u_Color, colorR, colorG, colorB);
     }
 
     for( let i=0; i < obj.length; i ++ ){
-        if(arguments.length == 2) {
+        if(arguments.length == 3) {
             gl.uniform1i(program.u_istex, 1)
             gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, textures[objCompImgIndex[i]]);
+            gl.bindTexture(gl.TEXTURE_2D, textures[objCompImgIndex[mdlname][i]]);
             gl.uniform1i(program.u_Sampler, 0);
             initAttributeVariable(gl, program.a_Position, obj[i].vertexBuffer);
             initAttributeVariable(gl, program.a_TexCoord, obj[i].texCoordBuffer);
             initAttributeVariable(gl, program.a_Normal, obj[i].normalBuffer);
         }
-        else if(arguments.length == 5) {
+        else if(arguments.length == 6) {
             initAttributeVariable(gl, program.a_Position, obj[i].vertexBuffer);
             initAttributeVariable(gl, program.a_Normal, obj[i].normalBuffer);
         }
