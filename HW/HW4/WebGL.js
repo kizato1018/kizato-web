@@ -227,7 +227,7 @@ var textures = {};
 var screen = [];
 var quadObj;
 var cubeMapTex;
-var imgNames = {"trump":["trumpLPcolors.png"], "car":["bodybkgd.JPG","interior_bump.jpg", "interior.jpg", "parts1.jpg", "parts2.jpg", "tires_bump.JPG"]};
+var imgNames = {"trump":["trumpLPcoltrumpObjors.png"], "car":["bodybkgd.JPG","interior_bump.jpg", "interior.jpg", "parts1.jpg", "parts2.jpg", "tires_bump.JPG"]};
 var objCompImgIndex = {"trump":["trumpLPcolors.png"], "car":["parts1.jpg", "interior_bump.jpg", "interior.jpg", "interior.jpg", "tires_bump.JPG", "parts2.jpg", "bodybkgd.JPG", "bodybkgd.JPG", "bodybkgd.JPG", "bodybkgd.JPG", "parts2.jpg", "tires_bump.JPG", "bodybkgd.JPG", "bodybkgd.JPG", "bodybkgd.JPG", "interior_bump.jpg", "interior.jpg", "bodybkgd.JPG", "bodybkgd.JPG", "interior_bump.jpg", "interior.jpg", "bodybkgd.JPG", "parts2.jpg", "parts2.jpg", "bodybkgd.JPG", "parts2.jpg", "tires_bump.JPG", "parts2.jpg"], "screen": ["screen"]};
 var fbo;
 var texCount = 0;
